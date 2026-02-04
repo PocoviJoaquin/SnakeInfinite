@@ -26,7 +26,7 @@ public class MenuJugar implements Screen {
     private Label multijugador;
     private Label volver;
 
-    private Label[] items;   // Para navegación circular
+    private Label[] items;
     private int seleccion = 0;
 
     public MenuJugar(Principal juego) {
@@ -57,16 +57,15 @@ public class MenuJugar implements Screen {
         volver = new Label("VOLVER", estilo);
         volver.setFontScale(2.5f);
 
-        // Guardar para navegación circular
+        // Guardar para navegación
         items = new Label[]{unJugador, multijugador, volver};
 
         stage.addActor(unJugador);
         stage.addActor(multijugador);
         stage.addActor(volver);
 
-        // Posicionar elementos centralizados
+        // Posicionar elementos
         posicionarElementos();
-
         actualizarColores();
     }
 
@@ -74,16 +73,15 @@ public class MenuJugar implements Screen {
         float screenWidth = Gdx.graphics.getWidth();
         float screenHeight = Gdx.graphics.getHeight();
 
-        // Calcular ancho del título
+        // Posicionar título centrado
         layout.setText(titulo.getStyle().font, titulo.getText().toString());
         float tituloWidth = layout.width * titulo.getFontScaleX();
         titulo.setPosition((screenWidth - tituloWidth) / 2, screenHeight * 0.7f);
 
-        // Calcular espaciado entre opciones
+        // Posicionar opciones centradas
         float espacioVertical = 80;
         float centroY = screenHeight * 0.45f;
 
-        // Posicionar cada item centrado
         for (int i = 0; i < items.length; i++) {
             layout.setText(items[i].getStyle().font, items[i].getText().toString());
             float itemWidth = layout.width * items[i].getFontScaleX();
@@ -103,37 +101,36 @@ public class MenuJugar implements Screen {
     }
 
     private void manejarInput() {
-
         // Mover arriba
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP) || Gdx.input.isKeyJustPressed(Input.Keys.W)) {
             seleccion = (seleccion - 1 + items.length) % items.length;
             ManejoDeAudio.reproducirSonido("sonido_seleccion");
             actualizarColores();
         }
 
         // Mover abajo
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN) || Gdx.input.isKeyJustPressed(Input.Keys.S)) {
             seleccion = (seleccion + 1) % items.length;
             ManejoDeAudio.reproducirSonido("sonido_seleccion");
             actualizarColores();
         }
 
-        // Enter para seleccionar
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-
+        // Enter o Espacio para seleccionar
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER) || Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             ManejoDeAudio.reproducirSonido("sonido_seleccion");
 
             switch (seleccion) {
-                case 0:
+                case 0: // Un Jugador
                     juego.setScreen(new PantallaJuego(juego));
                     dispose();
                     break;
 
-                case 1:
-                    System.out.println("Multijugador - Próximamente");
+               /* case 1: // Multijugador
+                    juego.setScreen(new PantallaJuegoMultijugador(juego));
+                    dispose();
                     break;
-
-                case 2:
+               */
+                case 2: // Volver
                     juego.setScreen(new MenuPrincipal(juego));
                     dispose();
                     break;
@@ -150,7 +147,6 @@ public class MenuJugar implements Screen {
 
     @Override
     public void render(float delta) {
-
         manejarInput();
 
         Gdx.gl.glClearColor(0, 0, 0, 1);
@@ -163,7 +159,7 @@ public class MenuJugar implements Screen {
     @Override
     public void resize(int w, int h) {
         stage.getViewport().update(w, h, true);
-        posicionarElementos(); // Recalcular posiciones al cambiar tamaño
+        posicionarElementos();
     }
 
     @Override public void show() {}

@@ -35,13 +35,13 @@ public class PantallaJuego implements Screen {
     private Texture texCabeza;
     private Texture texCuerpo;
 
-
-    // Configuración de pantalla
+    // Configuración de pantalla - ZOOM AUMENTADO
     private static final int ANCHO_PANTALLA = 800;
     private static final int ALTO_PANTALLA = 600;
     private static final int ALTURA_HUD = 60;
     private static final int ALTO_AREA_JUEGO = ALTO_PANTALLA - ALTURA_HUD;
     private static final int TAMAÑO_CELDA = 20;
+    private static final float ZOOM_CAMARA = 1.5f;
 
     // Color del HUD
     private static final Color COLOR_HUD = new Color(0.1f, 0.1f, 0.15f, 1f);
@@ -65,9 +65,13 @@ public class PantallaJuego implements Screen {
     public PantallaJuego(Principal juego) {
         this.juego = juego;
 
-        // Inicializar cámara
+        // Inicializar cámara con zoom
         this.camara = new OrthographicCamera();
-        this.viewport = new StretchViewport(ANCHO_PANTALLA, ALTO_PANTALLA, camara);
+        this.viewport = new StretchViewport(
+                ANCHO_PANTALLA * ZOOM_CAMARA,
+                ALTO_PANTALLA * ZOOM_CAMARA,
+                camara
+        );
         this.viewport.apply(true);
 
         // Inicializar renderizadores
@@ -80,20 +84,24 @@ public class PantallaJuego implements Screen {
         this.fuente.setColor(Color.WHITE);
 
         this.fuenteHUD = new BitmapFont();
-        this.fuenteHUD.getData().setScale(2f);
+        this.fuenteHUD.getData().setScale(1.5f);
         this.fuenteHUD.setColor(Color.WHITE);
 
         this.fuenteGameOver = new BitmapFont();
-        this.fuenteGameOver.getData().setScale(3f);
+        this.fuenteGameOver.getData().setScale(3.5f);
 
         this.layout = new GlyphLayout();
 
         // Inicializar mundo infinito
         this.mundo = new MundoInfinito();
 
-        texCabeza = new Texture("imagenes/serpiente_cabeza.png");
-        texCuerpo = new Texture("imagenes/serpiente_cuerpo.png");
-
+        // Cargar texturas con manejo de errores
+        try {
+            texCabeza = new Texture("imagenes/serpiente_cabeza.png");
+            texCuerpo = new Texture("imagenes/serpiente_cuerpo.png");
+        } catch (Exception e) {
+            System.err.println("Error cargando texturas de serpiente: " + e.getMessage());
+        }
 
         inicializarJuego();
     }
@@ -125,7 +133,6 @@ public class PantallaJuego implements Screen {
 
     @Override
     public void render(float delta) {
-
         manejarEntrada();
 
         if (!juegoTerminado && !pausado) {
@@ -168,11 +175,11 @@ public class PantallaJuego implements Screen {
             inicializarJuego();
         }
 
-        // Volver al menú
+        // Volver al menú - CORREGIDO: No llamar dispose() aquí
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if (juegoTerminado) {
                 juego.setScreen(new MenuPrincipal(juego));
-                dispose();
+                // NO llamar dispose() aquí - se llamará automáticamente cuando la pantalla se oculte
             } else {
                 pausado = !pausado;
             }
@@ -196,7 +203,7 @@ public class PantallaJuego implements Screen {
         Vector2 cabeza = cuerpoSerpiente.get(0);
         camara.position.set(
                 cabeza.x * TAMAÑO_CELDA + TAMAÑO_CELDA / 2f,
-                cabeza.y * TAMAÑO_CELDA + TAMAÑO_CELDA / 2f + ALTURA_HUD / 2f,
+                cabeza.y * TAMAÑO_CELDA + TAMAÑO_CELDA / 2f + (ALTURA_HUD * ZOOM_CAMARA) / 2f,
                 0
         );
     }
@@ -256,13 +263,15 @@ public class PantallaJuego implements Screen {
         shapeRenderer.setProjectionMatrix(camara.combined);
         batch.setProjectionMatrix(camara.combined);
 
-        // 1. Dibujar césped infinito (delegado al mundo)
-        mundo.dibujarCesped(shapeRenderer, cuerpoSerpiente.get(0), ANCHO_PANTALLA, ALTO_AREA_JUEGO);
+        // 1. Dibujar césped infinito
+        mundo.dibujarCesped(shapeRenderer, cuerpoSerpiente.get(0),
+                (int)(ANCHO_PANTALLA * ZOOM_CAMARA),
+                (int)(ALTO_AREA_JUEGO * ZOOM_CAMARA));
 
         // 2. Dibujar serpiente
         dibujarSerpiente();
 
-        // 3. Dibujar manzanas con sprite (delegado al mundo)
+        // 3. Dibujar manzanas con sprite
         mundo.dibujarManzanas(batch);
 
         // 4. Dibujar manzanas de respaldo si no hay textura
@@ -278,12 +287,9 @@ public class PantallaJuego implements Screen {
     }
 
     private void dibujarSerpiente() {
-
-        // --- DIBUJO CON SPRITES ---
         batch.begin();
 
         for (int i = 0; i < cuerpoSerpiente.size(); i++) {
-
             Vector2 segmento = cuerpoSerpiente.get(i);
 
             float x = segmento.x * TAMAÑO_CELDA;
@@ -291,18 +297,14 @@ public class PantallaJuego implements Screen {
 
             if (i == 0) {
                 // Cabeza
-                batch.draw(
-                        texCabeza,
-                        x, y,
-                        TAMAÑO_CELDA, TAMAÑO_CELDA
-                );
+                if (texCabeza != null) {
+                    batch.draw(texCabeza, x, y, TAMAÑO_CELDA, TAMAÑO_CELDA);
+                }
             } else {
                 // Cuerpo
-                batch.draw(
-                        texCuerpo,
-                        x, y,
-                        TAMAÑO_CELDA, TAMAÑO_CELDA
-                );
+                if (texCuerpo != null) {
+                    batch.draw(texCuerpo, x, y, TAMAÑO_CELDA, TAMAÑO_CELDA);
+                }
             }
         }
 
@@ -324,8 +326,8 @@ public class PantallaJuego implements Screen {
         shapeRenderer.rect(0, ALTO_AREA_JUEGO, ANCHO_PANTALLA, ALTURA_HUD);
 
         // Línea separadora
-        shapeRenderer.setColor(Color.GOLD);
-        shapeRenderer.rectLine(0, ALTO_AREA_JUEGO, ANCHO_PANTALLA, ALTO_AREA_JUEGO, 3);
+        shapeRenderer.setColor(new Color(0.3f, 0.3f, 0.35f, 1f));
+        shapeRenderer.rectLine(0, ALTO_AREA_JUEGO, ANCHO_PANTALLA, ALTO_AREA_JUEGO, 2);
         shapeRenderer.end();
 
         // Texto del HUD
@@ -335,20 +337,19 @@ public class PantallaJuego implements Screen {
 
         // Manzanas (izquierda)
         String textoManzanas = "Manzanas: " + manzanasObtenidas;
-        fuenteHUD.draw(batch, textoManzanas, 20, ALTO_PANTALLA - 18);
+        fuenteHUD.draw(batch, textoManzanas, 30, ALTO_PANTALLA - 22);
 
         // Longitud (centro)
         String textoLongitud = "Longitud: " + cuerpoSerpiente.size();
         layout.setText(fuenteHUD, textoLongitud);
-        fuenteHUD.draw(batch, textoLongitud, (ANCHO_PANTALLA - layout.width) / 2, ALTO_PANTALLA - 18);
+        fuenteHUD.draw(batch, textoLongitud, (ANCHO_PANTALLA - layout.width) / 2, ALTO_PANTALLA - 22);
 
         // Tiempo (derecha)
         int minutos = (int)(tiempoJuego / 60);
         int segundos = (int)(tiempoJuego % 60);
         String textoTiempo = String.format("Tiempo: %02d:%02d", minutos, segundos);
         layout.setText(fuenteHUD, textoTiempo);
-        fuenteHUD.draw(batch, textoTiempo, ANCHO_PANTALLA - layout.width - 20, ALTO_PANTALLA - 18);
-
+        fuenteHUD.draw(batch, textoTiempo, ANCHO_PANTALLA - layout.width - 30, ALTO_PANTALLA - 22);
 
         batch.end();
 
@@ -381,39 +382,43 @@ public class PantallaJuego implements Screen {
             fuenteGameOver.setColor(Color.YELLOW);
             String textoPausa = "PAUSADO";
             layout.setText(fuenteGameOver, textoPausa);
-            fuenteGameOver.draw(batch, textoPausa, centroX - layout.width / 2, centroY + 50);
+            fuenteGameOver.draw(batch, textoPausa, centroX - layout.width / 2, centroY + 80);
 
             fuente.setColor(Color.WHITE);
             String textoInstruccion = "Presiona P o ESC para continuar";
             layout.setText(fuente, textoInstruccion);
-            fuente.draw(batch, textoInstruccion, centroX - layout.width / 2, centroY - 20);
+            fuente.draw(batch, textoInstruccion, centroX - layout.width / 2, centroY);
         }
 
         if (juegoTerminado) {
             fuenteGameOver.setColor(Color.RED);
             String textoGameOver = "GAME OVER";
             layout.setText(fuenteGameOver, textoGameOver);
-            fuenteGameOver.draw(batch, textoGameOver, centroX - layout.width / 2, centroY + 100);
+            fuenteGameOver.draw(batch, textoGameOver, centroX - layout.width / 2, centroY + 120);
 
             fuenteHUD.setColor(Color.WHITE);
-            String textoManzanas = "Manzanas obtenidas: " + manzanasObtenidas;
+            String textoManzanas = "Manzanas: " + manzanasObtenidas;
             layout.setText(fuenteHUD, textoManzanas);
-            fuenteHUD.draw(batch, textoManzanas, centroX - layout.width / 2, centroY + 30);
+            fuenteHUD.draw(batch, textoManzanas, centroX - layout.width / 2, centroY + 40);
 
             int minutos = (int)(tiempoJuego / 60);
             int segundos = (int)(tiempoJuego % 60);
             String textoTiempo = String.format("Tiempo: %02d:%02d", minutos, segundos);
             layout.setText(fuenteHUD, textoTiempo);
-            fuenteHUD.draw(batch, textoTiempo, centroX - layout.width / 2, centroY - 10);
+            fuenteHUD.draw(batch, textoTiempo, centroX - layout.width / 2, centroY);
+
+            String textoLongitud = "Longitud: " + cuerpoSerpiente.size();
+            layout.setText(fuenteHUD, textoLongitud);
+            fuenteHUD.draw(batch, textoLongitud, centroX - layout.width / 2, centroY - 40);
 
             fuente.setColor(Color.LIGHT_GRAY);
             String textoReiniciar = "Presiona R para reiniciar";
             layout.setText(fuente, textoReiniciar);
-            fuente.draw(batch, textoReiniciar, centroX - layout.width / 2, centroY - 60);
+            fuente.draw(batch, textoReiniciar, centroX - layout.width / 2, centroY - 90);
 
             String textoMenu = "ESC para volver al menu";
             layout.setText(fuente, textoMenu);
-            fuente.draw(batch, textoMenu, centroX - layout.width / 2, centroY - 90);
+            fuente.draw(batch, textoMenu, centroX - layout.width / 2, centroY - 120);
         }
 
         batch.end();
@@ -440,18 +445,21 @@ public class PantallaJuego implements Screen {
     public void resume() {}
 
     @Override
-    public void hide() {}
+    public void hide() {
+        // Este método se llama automáticamente cuando cambias de pantalla
+        // Aquí es donde debes liberar recursos
+        dispose();
+    }
 
     @Override
     public void dispose() {
-        shapeRenderer.dispose();
-        batch.dispose();
-        fuente.dispose();
-        fuenteHUD.dispose();
-        fuenteGameOver.dispose();
-        mundo.dispose();
-        texCabeza.dispose();
-        texCuerpo.dispose();
-// Liberar recursos del mundo
+        if (shapeRenderer != null) shapeRenderer.dispose();
+        if (batch != null) batch.dispose();
+        if (fuente != null) fuente.dispose();
+        if (fuenteHUD != null) fuenteHUD.dispose();
+        if (fuenteGameOver != null) fuenteGameOver.dispose();
+        if (mundo != null) mundo.dispose();
+        if (texCabeza != null) texCabeza.dispose();
+        if (texCuerpo != null) texCuerpo.dispose();
     }
 }
