@@ -1,5 +1,7 @@
 imagenes/manzana.png
 imagenes/serpiente_cabeza.png
+imagenes/serpiente_cabeza2.png
 imagenes/serpiente_cuerpo.png
+imagenes/serpiente_cuerpo2.png
 sonidos/sonido_manzana.mp3
 sonidos/sonido_seleccion.mp3

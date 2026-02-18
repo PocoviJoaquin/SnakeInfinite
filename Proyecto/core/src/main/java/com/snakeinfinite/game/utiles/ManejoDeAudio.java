@@ -31,7 +31,10 @@ public class ManejoDeAudio {
     public static void reproducirSonido(String nombre) {
         Sound s = sonidos.get(nombre);
         if (s != null) {
-            s.play(1f); // volumen normal
+            s.play(1f);
+            System.out.println("Reproduciendo: " + nombre);
+        } else {
+            System.out.println("Sonido no encontrado: " + nombre);
         }
     }
 

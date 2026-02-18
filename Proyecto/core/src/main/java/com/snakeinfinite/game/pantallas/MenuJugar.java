@@ -125,11 +125,11 @@ public class MenuJugar implements Screen {
                     dispose();
                     break;
 
-               /* case 1: // Multijugador
+                 case 1: // Multijugador
                     juego.setScreen(new PantallaJuegoMultijugador(juego));
                     dispose();
                     break;
-               */
+
                 case 2: // Volver
                     juego.setScreen(new MenuPrincipal(juego));
                     dispose();

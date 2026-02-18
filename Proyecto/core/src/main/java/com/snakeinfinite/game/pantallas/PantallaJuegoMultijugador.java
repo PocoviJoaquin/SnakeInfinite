@@ -53,6 +53,7 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     private Vector2 posicionManzana;
 
     // HUD
+    private int ganador = -1;
     private int puntaje1 = 0;
     private int puntaje2 = 0;
     private float tiempoRestante = 300; // 5 minutos
@@ -96,7 +97,7 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
         // Conectar al servidor
         hiloCliente = new HiloCliente(this);
         hiloCliente.start();
-        hiloCliente.enviarMensaje("Conectar");
+
 
         System.out.println("Buscando servidor...");
     }
@@ -107,18 +108,31 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
             spriteManzana = new Sprite(texturaManzana);
             spriteManzana.setSize(TAMAÑO_CELDA, TAMAÑO_CELDA);
 
-            // Jugador 1: Verde
             texturaCabezaJ1 = new Texture(Gdx.files.internal("imagenes/serpiente_cabeza.png"));
             texturaCuerpoJ1 = new Texture(Gdx.files.internal("imagenes/serpiente_cuerpo.png"));
 
-            // Jugador 2: Azul (puedes usar los mismos o crear otros)
-            texturaCabezaJ2 = texturaCabezaJ1; // Temporal
-            texturaCuerpoJ2 = texturaCuerpoJ1;
+            texturaCabezaJ2 = new Texture(Gdx.files.internal("imagenes/serpiente_cabeza2.png"));
+            texturaCuerpoJ2 = new Texture(Gdx.files.internal("imagenes/serpiente_cuerpo2.png"));
 
-            System.out.println("✓ Sprites cargados");
         } catch (Exception e) {
             System.err.println("Error cargando sprites: " + e.getMessage());
         }
+    }
+
+    private void seguirSerpiente() {
+        ArrayList<Vector2> miSerpiente = miNumeroJugador == 1 ? serpiente1 : serpiente2;
+
+        if (miSerpiente == null || miSerpiente.isEmpty()) return;
+
+        Vector2 cabeza = miSerpiente.get(0);
+        camara.position.set(
+                cabeza.x * TAMAÑO_CELDA + TAMAÑO_CELDA / 2f,
+                cabeza.y * TAMAÑO_CELDA + TAMAÑO_CELDA / 2f,
+                0
+        );
+        camara.update();
+        shapeRenderer.setProjectionMatrix(camara.combined);
+        batch.setProjectionMatrix(camara.combined);
     }
 
     @Override
@@ -132,18 +146,19 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
         if (esperandoConexion) {
             dibujarPantallaEspera();
-
             if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 volverAlMenu();
             }
             return;
         }
 
+        // Seguir la serpiente del jugador actual
+        seguirSerpiente();
+
         if (juegoIniciado && !juegoTerminado && manejoInput != null) {
             manejoInput.actualizarDireccion();
         }
 
-        // Dibujar juego
         dibujarCesped();
         dibujarEntidades();
         dibujarHUD();
@@ -184,11 +199,11 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     private void dibujarCesped() {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Dibujar área visible
-        int xInicio = -20;
-        int xFin = ANCHO_PANTALLA / TAMAÑO_CELDA + 20;
-        int yInicio = -20;
-        int yFin = ALTO_PANTALLA / TAMAÑO_CELDA + 20;
+        // Calcular área visible según posición de la cámara
+        int xInicio = (int)((camara.position.x - ANCHO_PANTALLA / 2f) / TAMAÑO_CELDA) - 2;
+        int xFin   = (int)((camara.position.x + ANCHO_PANTALLA / 2f) / TAMAÑO_CELDA) + 2;
+        int yInicio = (int)((camara.position.y - ALTO_PANTALLA / 2f) / TAMAÑO_CELDA) - 2;
+        int yFin   = (int)((camara.position.y + ALTO_PANTALLA / 2f) / TAMAÑO_CELDA) + 2;
 
         for (int x = xInicio; x <= xFin; x++) {
             for (int y = yInicio; y <= yFin; y++) {
@@ -206,8 +221,6 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
     private void dibujarEntidades() {
         batch.begin();
-
-        // Manzana
         if (posicionManzana != null) {
             spriteManzana.setPosition(
                     posicionManzana.x * TAMAÑO_CELDA,
@@ -215,56 +228,42 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
             );
             spriteManzana.draw(batch);
         }
-
         batch.end();
 
-        // Serpientes con ShapeRenderer (temporal, hasta tener sprites)
-        dibujarSerpiente(serpiente1, Color.GREEN, Color.LIME);
-        dibujarSerpiente(serpiente2, Color.BLUE, Color.SKY);
+        dibujarSerpiente(serpiente1, texturaCabezaJ1, texturaCuerpoJ1, Color.GREEN);
+        dibujarSerpiente(serpiente2, texturaCabezaJ2, texturaCuerpoJ2, Color.BLUE);
     }
 
-    private void dibujarSerpiente(ArrayList<Vector2> cuerpo, Color colorCuerpo, Color colorCabeza) {
+    private void dibujarSerpiente(ArrayList<Vector2> cuerpo, Texture texCabeza, Texture texCuerpo, Color tinte) {
         if (cuerpo == null || cuerpo.isEmpty()) return;
 
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        batch.begin();
+        batch.setColor(tinte);
 
         for (int i = 0; i < cuerpo.size(); i++) {
             Vector2 segmento = cuerpo.get(i);
+            float x = segmento.x * TAMAÑO_CELDA;
+            float y = segmento.y * TAMAÑO_CELDA;
 
             if (i == 0) {
-                shapeRenderer.setColor(colorCabeza);
+                batch.draw(texCabeza, x, y, TAMAÑO_CELDA, TAMAÑO_CELDA);
             } else {
-                shapeRenderer.setColor(colorCuerpo);
+                batch.draw(texCuerpo, x, y, TAMAÑO_CELDA, TAMAÑO_CELDA);
             }
-
-            shapeRenderer.rect(
-                    segmento.x * TAMAÑO_CELDA,
-                    segmento.y * TAMAÑO_CELDA,
-                    TAMAÑO_CELDA,
-                    TAMAÑO_CELDA
-            );
         }
 
-        shapeRenderer.end();
-
-        // Bordes
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(Color.BLACK);
-
-        for (Vector2 segmento : cuerpo) {
-            shapeRenderer.rect(
-                    segmento.x * TAMAÑO_CELDA,
-                    segmento.y * TAMAÑO_CELDA,
-                    TAMAÑO_CELDA,
-                    TAMAÑO_CELDA
-            );
-        }
-
-        shapeRenderer.end();
+        batch.setColor(Color.WHITE);
+        batch.end();
     }
 
     private void dibujarHUD() {
-        // Fondo HUD
+        // Cámara fija para el HUD
+        OrthographicCamera camaraHUD = new OrthographicCamera();
+        camaraHUD.setToOrtho(false, ANCHO_PANTALLA, ALTO_PANTALLA);
+        camaraHUD.update();
+        shapeRenderer.setProjectionMatrix(camaraHUD.combined);
+        batch.setProjectionMatrix(camaraHUD.combined);
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.setColor(Color.BLACK);
         shapeRenderer.rect(0, ALTO_PANTALLA - ALTURA_HUD, ANCHO_PANTALLA, ALTURA_HUD);
@@ -274,34 +273,80 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
         fuenteHUD.setColor(Color.WHITE);
         float yTexto = ALTO_PANTALLA - 16;
 
-        // Tiempo (izquierda)
         int minutos = (int)(tiempoRestante / 60);
         int segundos = (int)(tiempoRestante % 60);
         String textoTiempo = String.format("Tiempo: %02d:%02d", minutos, segundos);
         fuenteHUD.draw(batch, textoTiempo, 20, yTexto);
 
-        // Puntajes (centro)
         String textoPuntaje = String.format("J1: %d  -  J2: %d", puntaje1, puntaje2);
         layout.setText(fuenteHUD, textoPuntaje);
         fuenteHUD.draw(batch, textoPuntaje, (ANCHO_PANTALLA - layout.width) / 2, yTexto);
 
-        // Tu jugador (derecha)
         String textoJugador = "Tu: J" + miNumeroJugador;
         layout.setText(fuenteHUD, textoJugador);
         fuenteHUD.draw(batch, textoJugador, ANCHO_PANTALLA - layout.width - 20, yTexto);
 
         batch.end();
+
+        // Restaurar cámara del juego
+        shapeRenderer.setProjectionMatrix(camara.combined);
+        batch.setProjectionMatrix(camara.combined);
     }
 
     private void dibujarGameOver() {
+        // Cámara fija para que el mensaje aparezca siempre en pantalla
+        OrthographicCamera camaraFija = new OrthographicCamera();
+        camaraFija.setToOrtho(false, ANCHO_PANTALLA, ALTO_PANTALLA);
+        camaraFija.update();
+        shapeRenderer.setProjectionMatrix(camaraFija.combined);
+        batch.setProjectionMatrix(camaraFija.combined);
+
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.setColor(0, 0, 0, 0.8f);
         shapeRenderer.rect(0, 0, ANCHO_PANTALLA, ALTO_PANTALLA);
         shapeRenderer.end();
 
         batch.begin();
-        // Implementar mensaje de ganador
+
+        fuenteGameOver.setColor(Color.RED);
+        String titulo = "PARTIDA FINALIZADA";
+        layout.setText(fuenteGameOver, titulo);
+        fuenteGameOver.draw(batch, titulo,
+                (ANCHO_PANTALLA - layout.width) / 2,
+                ALTO_PANTALLA / 2 + 80);
+
+        String resultado;
+        Color colorResultado;
+
+        if (ganador == miNumeroJugador) {
+            resultado = "¡HAS GANADO!";
+            colorResultado = Color.YELLOW;
+        } else if (ganador == 0) {
+            resultado = "¡EMPATE!";
+            colorResultado = Color.WHITE;
+        } else {
+            resultado = "HAS PERDIDO";
+            colorResultado = Color.RED;
+        }
+
+        fuenteHUD.setColor(colorResultado);
+        layout.setText(fuenteHUD, resultado);
+        fuenteHUD.draw(batch, resultado,
+                (ANCHO_PANTALLA - layout.width) / 2,
+                ALTO_PANTALLA / 2);
+
+        fuenteHUD.setColor(Color.LIGHT_GRAY);
+        String instruccion = "ESC para volver al menú";
+        layout.setText(fuenteHUD, instruccion);
+        fuenteHUD.draw(batch, instruccion,
+                (ANCHO_PANTALLA - layout.width) / 2,
+                ALTO_PANTALLA / 2 - 60);
+
         batch.end();
+
+        // Restaurar cámara del juego
+        shapeRenderer.setProjectionMatrix(camara.combined);
+        batch.setProjectionMatrix(camara.combined);
     }
 
     // ========== CALLBACKS DE RED ==========
@@ -381,6 +426,7 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     @Override
     public void onFinalizarJuego(int ganador, String razon) {
         System.out.println("Juego terminado. Ganador: " + ganador + " | Razón: " + razon);
+        this.ganador = ganador;
         juegoTerminado = true;
     }
 
@@ -388,6 +434,16 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     public void onVolverAlMenu() {
         volverAlMenu();
     }
+
+    private String mensajeDesconexion = null;
+
+    @Override
+    public void onJugadorDesconectado(int numeroJugador) {
+        int ganador = numeroJugador == 1 ? 2 : 1;
+        mensajeDesconexion = "Jugador " + numeroJugador + " se desconectó. ¡Ganaste!" ;
+        juegoTerminado = true;
+    }
+
 
     private void volverAlMenu() {
         if (hiloCliente != null) {
@@ -427,5 +483,7 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
         if (texturaManzana != null) texturaManzana.dispose();
         if (texturaCabezaJ1 != null) texturaCabezaJ1.dispose();
         if (texturaCuerpoJ1 != null) texturaCuerpoJ1.dispose();
+        if (texturaCabezaJ2 != null) texturaCabezaJ2.dispose();
+        if (texturaCuerpoJ2 != null) texturaCuerpoJ2.dispose();
     }
 }

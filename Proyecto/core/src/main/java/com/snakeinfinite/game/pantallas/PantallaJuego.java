@@ -41,7 +41,7 @@ public class PantallaJuego implements Screen {
     private static final int ALTURA_HUD = 60;
     private static final int ALTO_AREA_JUEGO = ALTO_PANTALLA - ALTURA_HUD;
     private static final int TAMAÑO_CELDA = 20;
-    private static final float ZOOM_CAMARA = 1.5f;
+    private static final float ZOOM_CAMARA = 1.2f;
 
     // Color del HUD
     private static final Color COLOR_HUD = new Color(0.1f, 0.1f, 0.15f, 1f);

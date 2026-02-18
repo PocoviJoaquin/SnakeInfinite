@@ -74,4 +74,6 @@ public interface ControladorJuegoRed {
      * Llamado cuando se debe volver al menú
      */
     void onVolverAlMenu();
+
+    void onJugadorDesconectado(int numeroJugador);
 }

@@ -22,6 +22,7 @@ public class HiloCliente extends Thread {
             this.controladorJuego = controladorJuego;
             ipServidor = InetAddress.getByName(ipServidorStr);
             socket = new DatagramSocket();
+            socket.setBroadcast(true);
             System.out.println("Cliente UDP creado. Buscando servidor...");
         } catch (SocketException | UnknownHostException e) {
             System.err.println("Error al crear socket del cliente: " + e.getMessage());
@@ -30,6 +31,7 @@ public class HiloCliente extends Thread {
 
     @Override
     public void run() {
+        enviarMensaje("Conectar");
         while (!finalizado) {
             DatagramPacket paquete = new DatagramPacket(new byte[2048], 2048);
             try {
@@ -144,8 +146,11 @@ public class HiloCliente extends Thread {
                 );
                 break;
 
-            case "Desconectar":
-                Gdx.app.postRunnable(() -> controladorJuego.onVolverAlMenu());
+            case "Desconexion":
+                int jugadorQueSeFue = Integer.parseInt(partes[1]);
+                Gdx.app.postRunnable(() ->
+                        controladorJuego.onJugadorDesconectado(jugadorQueSeFue)
+                );
                 break;
         }
     }
