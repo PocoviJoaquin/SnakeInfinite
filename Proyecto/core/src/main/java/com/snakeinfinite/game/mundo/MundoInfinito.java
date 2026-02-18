@@ -16,9 +16,12 @@ import java.util.ArrayList;
 public class MundoInfinito {
 
     // Configuración del mundo
-    private static final int TAMAÑO_CELDA = 20;
+    private static final int TAMAÑO_CELDA = 30;
     private static final float RADIO_PANTALLA = 20; // tiles de radio visible
-
+    private ArrayList<Vector2> arboles;
+    private static final int CANTIDAD_ARBOLES = 10;
+    private static final int DISTANCIA_MIN_ARBOL = 5;
+    private Texture texturaArbol;
     // Colores del césped
     private static final Color COLOR_CESPED = new Color(0.2f, 0.6f, 0.2f, 1f);
     private static final Color COLOR_CESPED_CLARO = new Color(0.25f, 0.65f, 0.25f, 1f);
@@ -31,6 +34,7 @@ public class MundoInfinito {
 
     public MundoInfinito() {
         this.manzanaActual = null;
+        texturaArbol = new Texture(Gdx.files.internal("imagenes/arbol.png"));
 
         // Cargar textura de la manzana
         try {
@@ -46,30 +50,72 @@ public class MundoInfinito {
      * Inicializa el mundo generando la primera manzana
      */
     public void inicializar(Vector2 posicionInicial) {
-        // Generar la primera manzana cerca de la serpiente
+        arboles = new ArrayList<>();
+        ultimaPosicionArboles = new Vector2(posicionInicial);
         generarNuevaManzana(posicionInicial, null);
-
+        generarArbolesNuevos(posicionInicial, null);
         System.out.println("Mundo infinito inicializado");
-        System.out.println("Primera manzana en: " + manzanaActual);
     }
 
+    public void dibujarArboles(SpriteBatch batch) {
+        if (arboles == null || texturaArbol == null) return;
+
+        batch.begin();
+        for (Vector2 arbol : arboles) {
+            batch.draw(texturaArbol, arbol.x * TAMAÑO_CELDA, arbol.y * TAMAÑO_CELDA, TAMAÑO_CELDA, TAMAÑO_CELDA);
+        }
+        batch.end();
+    }
+
+    public ArrayList<Vector2> getArboles() {
+        return arboles;
+    }
     /**
      * Actualiza el mundo: verifica si la manzana está fuera del radio visible
      */
+    private Vector2 ultimaPosicionArboles = new Vector2(0, 0);
+    private static final float DISTANCIA_CAMBIO_PANTALLA = 20f;
+
+
+
+    public void generarArbolesNuevos(Vector2 posicionSerpiente, ArrayList<Vector2> cuerpoSerpiente) {
+        arboles.clear();
+
+        int intentos = 0;
+        while (arboles.size() < CANTIDAD_ARBOLES && intentos < 200) {
+            float angulo = MathUtils.random(0f, MathUtils.PI2);
+            float distancia = MathUtils.random(DISTANCIA_MIN_ARBOL, (int)RADIO_PANTALLA);
+
+            int x = (int)(posicionSerpiente.x + Math.cos(angulo) * distancia);
+            int y = (int)(posicionSerpiente.y + Math.sin(angulo) * distancia);
+            Vector2 posArbol = new Vector2(x, y);
+
+            float dist = posicionSerpiente.dst(posArbol);
+            boolean sobreManzana = manzanaActual != null && manzanaActual.equals(posArbol);
+            boolean sobreOtroArbol = arboles.contains(posArbol);
+            boolean muyCerca = dist < DISTANCIA_MIN_ARBOL;
+            boolean sobreCuerpo = cuerpoSerpiente != null && colisionConSerpiente(posArbol, cuerpoSerpiente);
+
+            if (!sobreManzana && !sobreOtroArbol && !muyCerca && !sobreCuerpo) {
+                arboles.add(posArbol);
+            }
+            intentos++;
+        }
+    }
+
+
     public void actualizar(Vector2 posicionSerpiente, ArrayList<Vector2> cuerpoSerpiente) {
-        // Si no hay manzana, generar una nueva
         if (manzanaActual == null) {
             generarNuevaManzana(posicionSerpiente, cuerpoSerpiente);
-            return;
         }
 
-        // Verificar si la manzana está fuera del radio visible
         float distancia = posicionSerpiente.dst(manzanaActual);
-
         if (distancia > RADIO_PANTALLA) {
-            System.out.println("Manzana fuera del radio visible. Generando nueva...");
             generarNuevaManzana(posicionSerpiente, cuerpoSerpiente);
         }
+
+        // Eliminar árboles lejanos y generar nuevos cerca
+
     }
 
     /**
@@ -80,15 +126,9 @@ public class MundoInfinito {
         Vector2 nuevaManzana;
 
         do {
-            // Generar dentro del radio visible (entre 5 y 15 tiles de distancia)
-            int distanciaMin = 5;
-            int distanciaMax = 15;
-
-            // Generar ángulo aleatorio
             float angulo = MathUtils.random(0f, MathUtils.PI2);
-            float distancia = MathUtils.random(distanciaMin, distanciaMax);
+            float distancia = MathUtils.random(5, 15);
 
-            // Convertir a coordenadas cartesianas
             int offsetX = (int)(Math.cos(angulo) * distancia);
             int offsetY = (int)(Math.sin(angulo) * distancia);
 
@@ -99,7 +139,6 @@ public class MundoInfinito {
 
             intentos++;
             if (intentos > 100) {
-                // Si no se encuentra posición válida, poner algo cerca
                 nuevaManzana = new Vector2(
                         (int)posicionReferencia.x + 10,
                         (int)posicionReferencia.y + 10
@@ -107,10 +146,12 @@ public class MundoInfinito {
                 break;
             }
 
-        } while (cuerpoSerpiente != null && colisionConSerpiente(nuevaManzana, cuerpoSerpiente));
+        } while (
+                (cuerpoSerpiente != null && colisionConSerpiente(nuevaManzana, cuerpoSerpiente)) ||
+                        (arboles != null && arboles.contains(nuevaManzana)) // ← verificación contra árboles
+        );
 
         manzanaActual = nuevaManzana;
-        System.out.println("Nueva manzana generada en: (" + (int)nuevaManzana.x + ", " + (int)nuevaManzana.y + ")");
     }
 
     /**
@@ -131,9 +172,8 @@ public class MundoInfinito {
      */
     public boolean verificarColisionManzana(Vector2 posicionCabeza, ArrayList<Vector2> cuerpoSerpiente) {
         if (manzanaActual != null && posicionCabeza.equals(manzanaActual)) {
-            System.out.println("¡Manzana comida!");
-            // Generar nueva manzana inmediatamente
             generarNuevaManzana(posicionCabeza, cuerpoSerpiente);
+            generarArbolesNuevos(posicionCabeza, cuerpoSerpiente); // ← regenerar árboles
             return true;
         }
         return false;

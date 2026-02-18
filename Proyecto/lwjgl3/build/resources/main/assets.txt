@@ -1,3 +1,4 @@
+imagenes/arbol.png
 imagenes/manzana.png
 imagenes/serpiente_cabeza.png
 imagenes/serpiente_cabeza2.png

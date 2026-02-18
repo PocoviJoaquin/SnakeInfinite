@@ -40,7 +40,7 @@ public class PantallaJuego implements Screen {
     private static final int ALTO_PANTALLA = 600;
     private static final int ALTURA_HUD = 60;
     private static final int ALTO_AREA_JUEGO = ALTO_PANTALLA - ALTURA_HUD;
-    private static final int TAMAÑO_CELDA = 20;
+    private static final int TAMAÑO_CELDA = 30;
     private static final float ZOOM_CAMARA = 1.2f;
 
     // Color del HUD
@@ -222,6 +222,12 @@ public class PantallaJuego implements Screen {
             return;
         }
 
+        if (mundo.getArboles() != null && mundo.getArboles().contains(nuevaCabeza)) {
+            juegoTerminado = true;
+            System.out.println("GAME OVER: Colisión con árbol");
+            return;
+        }
+
         // Agregar nueva cabeza
         cuerpoSerpiente.add(0, nuevaCabeza);
 
@@ -277,6 +283,7 @@ public class PantallaJuego implements Screen {
         // 4. Dibujar manzanas de respaldo si no hay textura
         mundo.dibujarManzanasRespaldo(shapeRenderer);
 
+        mundo.dibujarArboles(batch);
         // 5. Dibujar HUD
         dibujarHUD();
 
