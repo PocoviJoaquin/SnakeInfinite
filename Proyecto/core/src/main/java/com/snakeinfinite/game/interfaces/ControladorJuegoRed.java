@@ -63,6 +63,7 @@ public interface ControladorJuegoRed {
      */
     void onColision(int numeroJugador);
 
+    void onActualizarArboles(String arboles);
     /**
      * Llamado cuando el juego termina
      * @param ganador 1, 2, o 0 para empate
@@ -73,7 +74,9 @@ public interface ControladorJuegoRed {
     /**
      * Llamado cuando se debe volver al menú
      */
+
     void onVolverAlMenu();
+    void onServidorCaido();
 
     void onJugadorDesconectado(int numeroJugador);
 }

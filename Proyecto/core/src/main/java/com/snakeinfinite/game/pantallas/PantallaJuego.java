@@ -165,6 +165,14 @@ public class PantallaJuego implements Screen {
             }
         }
 
+        // Volver al menú
+        if (pausado && Gdx.input.isKeyJustPressed(Input.Keys.Q)) {
+            Gdx.app.postRunnable(() -> {
+                juego.setScreen(new MenuJugar(juego));
+            });
+            return;
+        }
+
         // Pausa
         if (Gdx.input.isKeyJustPressed(Input.Keys.P)) {
             pausado = !pausado;
@@ -178,8 +186,9 @@ public class PantallaJuego implements Screen {
         // Volver al menú - CORREGIDO: No llamar dispose() aquí
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if (juegoTerminado) {
-                juego.setScreen(new MenuPrincipal(juego));
-                // NO llamar dispose() aquí - se llamará automáticamente cuando la pantalla se oculte
+                Gdx.app.postRunnable(() -> {
+                    juego.setScreen(new MenuPrincipal(juego));
+                });
             } else {
                 pausado = !pausado;
             }
@@ -392,9 +401,14 @@ public class PantallaJuego implements Screen {
             fuenteGameOver.draw(batch, textoPausa, centroX - layout.width / 2, centroY + 80);
 
             fuente.setColor(Color.WHITE);
-            String textoInstruccion = "Presiona P o ESC para continuar";
-            layout.setText(fuente, textoInstruccion);
-            fuente.draw(batch, textoInstruccion, centroX - layout.width / 2, centroY);
+            String textoESC = "Presioná ESC para continuar la partida";
+            layout.setText(fuente, textoESC);
+            fuente.draw(batch, textoESC, centroX - layout.width / 2, centroY);
+
+            fuente.setColor(Color.LIGHT_GRAY);
+            String textoQ = "Presioná Q para volver al menú";
+            layout.setText(fuente, textoQ);
+            fuente.draw(batch, textoQ, centroX - layout.width / 2, centroY - 40);
         }
 
         if (juegoTerminado) {

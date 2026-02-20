@@ -16,13 +16,16 @@ public class HiloCliente extends Thread {
     private InetAddress ipServidor;
     private boolean finalizado = false;
     private ControladorJuegoRed controladorJuego;
-
+    private long ultimoPaqueteRecibido = System.currentTimeMillis();
+    private static final long TIMEOUT_SERVIDOR = 5000; // 5 segundos sin respuesta
+    private boolean juegoTerminado = false;
     public HiloCliente(ControladorJuegoRed controladorJuego) {
         try {
             this.controladorJuego = controladorJuego;
             ipServidor = InetAddress.getByName(ipServidorStr);
             socket = new DatagramSocket();
             socket.setBroadcast(true);
+            socket.setSoTimeout(3000);
             System.out.println("Cliente UDP creado. Buscando servidor...");
         } catch (SocketException | UnknownHostException e) {
             System.err.println("Error al crear socket del cliente: " + e.getMessage());
@@ -32,17 +35,24 @@ public class HiloCliente extends Thread {
     @Override
     public void run() {
         enviarMensaje("Conectar");
-        while (!finalizado) {
-            DatagramPacket paquete = new DatagramPacket(new byte[2048], 2048);
+        ultimoPaqueteRecibido = System.currentTimeMillis();
+        do {
+            DatagramPacket paquete = new DatagramPacket(new byte[1024], 1024);
             try {
                 socket.receive(paquete);
+                ultimoPaqueteRecibido = System.currentTimeMillis();
                 procesarMensaje(paquete);
+            } catch (java.net.SocketTimeoutException e) {
+                if (!juegoTerminado && System.currentTimeMillis() - ultimoPaqueteRecibido > TIMEOUT_SERVIDOR) {
+                    Gdx.app.postRunnable(() -> controladorJuego.onServidorCaido());
+                    finalizado = true;
+                }
             } catch (IOException e) {
                 if (!finalizado) {
                     System.err.println("Error al recibir paquete: " + e.getMessage());
                 }
             }
-        }
+        } while (!finalizado);
     }
 
     private void procesarMensaje(DatagramPacket paquete) {
@@ -152,6 +162,12 @@ public class HiloCliente extends Thread {
                         controladorJuego.onJugadorDesconectado(jugadorQueSeFue)
                 );
                 break;
+            case "ActualizarArboles":
+                String arbolesDatos = partes[1];
+                Gdx.app.postRunnable(() ->
+                        controladorJuego.onActualizarArboles(arbolesDatos)
+                );
+                break;
         }
     }
 
@@ -171,7 +187,9 @@ public class HiloCliente extends Thread {
             System.err.println("Error al enviar mensaje: " + e.getMessage());
         }
     }
-
+    public void setJuegoTerminado(boolean terminado) {
+        this.juegoTerminado = terminado;
+    }
     /**
      * Cierra el cliente
      */

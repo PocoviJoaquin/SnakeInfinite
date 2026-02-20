@@ -30,13 +30,13 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     private BitmapFont fuenteHUD;
     private BitmapFont fuenteGameOver;
     private GlyphLayout layout;
-
+    private boolean servidorCaido = false;
     // Sprites
     private Texture texturaManzana;
     private Texture texturaCabezaJ1, texturaCuerpoJ1;
     private Texture texturaCabezaJ2, texturaCuerpoJ2;
     private Sprite spriteManzana;
-
+    private Texture texturaArbol;
     // RED
     private HiloCliente hiloCliente;
     private ManejoDeInputCliente manejoInput;
@@ -51,7 +51,7 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     private ArrayList<Vector2> serpiente1;
     private ArrayList<Vector2> serpiente2;
     private Vector2 posicionManzana;
-
+    private ArrayList<Vector2> arboles = new ArrayList<>();
     // HUD
     private int ganador = -1;
     private int puntaje1 = 0;
@@ -101,9 +101,21 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
         System.out.println("Buscando servidor...");
     }
-
+    @Override
+    public void onActualizarArboles(String datos) {
+        ArrayList<Vector2> nuevosArboles = new ArrayList<>();
+        String[] segmentos = datos.split(";");
+        for (String segmento : segmentos) {
+            String[] coords = segmento.split(",");
+            float x = Float.parseFloat(coords[0]);
+            float y = Float.parseFloat(coords[1]);
+            nuevosArboles.add(new Vector2(x, y));
+        }
+        arboles = nuevosArboles;
+    }
     private void cargarSprites() {
         try {
+            texturaArbol = new Texture(Gdx.files.internal("imagenes/arbol.png"));
             texturaManzana = new Texture(Gdx.files.internal("imagenes/manzana.png"));
             spriteManzana = new Sprite(texturaManzana);
             spriteManzana.setSize(TAMAÑO_CELDA, TAMAÑO_CELDA);
@@ -221,15 +233,31 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
     private void dibujarEntidades() {
         batch.begin();
-        if (posicionManzana != null) {
+
+        // Manzana
+        if (posicionManzana != null && spriteManzana != null) {
             spriteManzana.setPosition(
                     posicionManzana.x * TAMAÑO_CELDA,
                     posicionManzana.y * TAMAÑO_CELDA
             );
             spriteManzana.draw(batch);
         }
+
+        // Árboles con sprite
+        if (texturaArbol != null) {
+            for (Vector2 arbol : arboles) {
+                batch.draw(texturaArbol,
+                        arbol.x * TAMAÑO_CELDA,
+                        arbol.y * TAMAÑO_CELDA,
+                        TAMAÑO_CELDA,
+                        TAMAÑO_CELDA
+                );
+            }
+        }
+
         batch.end();
 
+        // Serpientes
         dibujarSerpiente(serpiente1, texturaCabezaJ1, texturaCuerpoJ1, Color.GREEN);
         dibujarSerpiente(serpiente2, texturaCabezaJ2, texturaCuerpoJ2, Color.BLUE);
     }
@@ -294,7 +322,6 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
     }
 
     private void dibujarGameOver() {
-        // Cámara fija para que el mensaje aparezca siempre en pantalla
         OrthographicCamera camaraFija = new OrthographicCamera();
         camaraFija.setToOrtho(false, ANCHO_PANTALLA, ALTO_PANTALLA);
         camaraFija.update();
@@ -308,43 +335,73 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
         batch.begin();
 
-        fuenteGameOver.setColor(Color.RED);
-        String titulo = "PARTIDA FINALIZADA";
-        layout.setText(fuenteGameOver, titulo);
-        fuenteGameOver.draw(batch, titulo,
-                (ANCHO_PANTALLA - layout.width) / 2,
-                ALTO_PANTALLA / 2 + 80);
+        if (servidorCaido) {
+            fuenteGameOver.setColor(Color.RED);
+            String titulo = "¡Ups! El servidor se ha caído";
+            layout.setText(fuenteGameOver, titulo);
+            fuenteGameOver.draw(batch, titulo,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2 + 80);
 
-        String resultado;
-        Color colorResultado;
+            fuenteHUD.setColor(Color.WHITE);
+            String instruccion = "Presioná ESC para volver al menú";
+            layout.setText(fuenteHUD, instruccion);
+            fuenteHUD.draw(batch, instruccion,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2);
 
-        if (ganador == miNumeroJugador) {
-            resultado = "¡HAS GANADO!";
-            colorResultado = Color.YELLOW;
-        } else if (ganador == 0) {
-            resultado = "¡EMPATE!";
-            colorResultado = Color.WHITE;
+        } else if (mensajeDesconexion != null) {
+            fuenteGameOver.setColor(Color.YELLOW);
+            layout.setText(fuenteGameOver, mensajeDesconexion);
+            fuenteGameOver.draw(batch, mensajeDesconexion,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2 + 80);
+
+            fuenteHUD.setColor(Color.WHITE);
+            String instruccion = "Presioná ESC para volver al menú";
+            layout.setText(fuenteHUD, instruccion);
+            fuenteHUD.draw(batch, instruccion,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2);
+
         } else {
-            resultado = "HAS PERDIDO";
-            colorResultado = Color.RED;
+            fuenteGameOver.setColor(Color.RED);
+            String titulo = "PARTIDA FINALIZADA";
+            layout.setText(fuenteGameOver, titulo);
+            fuenteGameOver.draw(batch, titulo,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2 + 80);
+
+            String resultado;
+            Color colorResultado;
+
+            if (ganador == miNumeroJugador) {
+                resultado = "¡HAS GANADO!";
+                colorResultado = Color.YELLOW;
+            } else if (ganador == 0) {
+                resultado = "¡EMPATE!";
+                colorResultado = Color.WHITE;
+            } else {
+                resultado = "HAS PERDIDO";
+                colorResultado = Color.RED;
+            }
+
+            fuenteHUD.setColor(colorResultado);
+            layout.setText(fuenteHUD, resultado);
+            fuenteHUD.draw(batch, resultado,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2);
+
+            fuenteHUD.setColor(Color.LIGHT_GRAY);
+            String instruccion = "ESC para volver al menú";
+            layout.setText(fuenteHUD, instruccion);
+            fuenteHUD.draw(batch, instruccion,
+                    (ANCHO_PANTALLA - layout.width) / 2,
+                    ALTO_PANTALLA / 2 - 60);
         }
-
-        fuenteHUD.setColor(colorResultado);
-        layout.setText(fuenteHUD, resultado);
-        fuenteHUD.draw(batch, resultado,
-                (ANCHO_PANTALLA - layout.width) / 2,
-                ALTO_PANTALLA / 2);
-
-        fuenteHUD.setColor(Color.LIGHT_GRAY);
-        String instruccion = "ESC para volver al menú";
-        layout.setText(fuenteHUD, instruccion);
-        fuenteHUD.draw(batch, instruccion,
-                (ANCHO_PANTALLA - layout.width) / 2,
-                ALTO_PANTALLA / 2 - 60);
 
         batch.end();
 
-        // Restaurar cámara del juego
         shapeRenderer.setProjectionMatrix(camara.combined);
         batch.setProjectionMatrix(camara.combined);
     }
@@ -358,6 +415,12 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
         this.tiempoRestante = tiempoRestante;
 
         manejoInput = new ManejoDeInputCliente(hiloCliente, numeroJugador);
+    }
+
+    @Override
+    public void onServidorCaido() {
+        servidorCaido = true;
+        juegoTerminado = true;
     }
 
     @Override
@@ -425,9 +488,9 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
     @Override
     public void onFinalizarJuego(int ganador, String razon) {
-        System.out.println("Juego terminado. Ganador: " + ganador + " | Razón: " + razon);
         this.ganador = ganador;
         juegoTerminado = true;
+        hiloCliente.setJuegoTerminado(true); // ← agregar esto
     }
 
     @Override
@@ -480,6 +543,7 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
         fuenteHUD.dispose();
         fuenteGameOver.dispose();
 
+        if (texturaArbol != null) texturaArbol.dispose();
         if (texturaManzana != null) texturaManzana.dispose();
         if (texturaCabezaJ1 != null) texturaCabezaJ1.dispose();
         if (texturaCuerpoJ1 != null) texturaCuerpoJ1.dispose();
