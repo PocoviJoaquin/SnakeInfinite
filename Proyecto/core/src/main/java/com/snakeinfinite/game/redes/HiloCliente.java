@@ -157,10 +157,12 @@ public class HiloCliente extends Thread {
                 break;
 
             case "Desconexion":
-                int jugadorQueSeFue = Integer.parseInt(partes[1]);
-                Gdx.app.postRunnable(() ->
-                        controladorJuego.onJugadorDesconectado(jugadorQueSeFue)
-                );
+                if (!juegoTerminado) { // ← agregar esta verificación
+                    int jugadorQueSeFue = Integer.parseInt(partes[1]);
+                    Gdx.app.postRunnable(() ->
+                            controladorJuego.onJugadorDesconectado(jugadorQueSeFue)
+                    );
+                }
                 break;
             case "ActualizarArboles":
                 String arbolesDatos = partes[1];

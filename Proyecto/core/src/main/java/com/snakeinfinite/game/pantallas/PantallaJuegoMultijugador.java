@@ -502,8 +502,9 @@ public class PantallaJuegoMultijugador implements Screen, ControladorJuegoRed {
 
     @Override
     public void onJugadorDesconectado(int numeroJugador) {
+        if (juegoTerminado) return; // ← si ya terminó, ignorar
         int ganador = numeroJugador == 1 ? 2 : 1;
-        mensajeDesconexion = "Jugador " + numeroJugador + " se desconectó. ¡Ganaste!" ;
+        mensajeDesconexion = "Jugador " + numeroJugador + " se desconectó. ¡Ganaste!";
         juegoTerminado = true;
     }
 
